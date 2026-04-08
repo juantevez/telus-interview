@@ -9,7 +9,6 @@ import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class WillowTreePersonAdapter implements PersonRepositoryPort {
 
@@ -17,9 +16,7 @@ public class WillowTreePersonAdapter implements PersonRepositoryPort {
 
     private final RestClient restClient;
     private final String profilesUrl;
-
-    private final AtomicReference<List<Person>> cacheRef = new AtomicReference<>();
-    private final AtomicReference<Map<UUID, Person>> indexRef = new AtomicReference<>();
+    private volatile List<Person> cache;
 
     public WillowTreePersonAdapter(RestClient restClient, String profilesUrl) {
         this.restClient = restClient;
@@ -35,16 +32,13 @@ public class WillowTreePersonAdapter implements PersonRepositoryPort {
 
     @Override
     public Optional<Person> findById(UUID id) {
-        return Optional.ofNullable(getIndex().get(id));
+        return getProfiles().stream().filter(p -> p.getId().equals(id)).findFirst();
     }
 
     @Override
     public List<Person> findAllByIds(List<UUID> ids) {
-        Map<UUID, Person> index = getIndex();
-        return ids.stream()
-                .map(index::get)
-                .filter(Objects::nonNull)
-                .toList();
+        Set<UUID> idSet = new HashSet<>(ids);
+        return getProfiles().stream().filter(p -> idSet.contains(p.getId())).toList();
     }
 
     @Override
@@ -52,50 +46,25 @@ public class WillowTreePersonAdapter implements PersonRepositoryPort {
         return getProfiles().size();
     }
 
-    private List<Person> getProfiles() {
-        List<Person> cached = cacheRef.get();
-        if (cached != null) return cached;
+    private synchronized List<Person> getProfiles() {
+        if (cache == null) {
+            String json = restClient.get()
+                    .uri(profilesUrl)
+                    .retrieve()
+                    .body(String.class);
 
-        synchronized (this) {
-            cached = cacheRef.get();           // segunda lectura dentro del lock
-            if (cached != null) return cached;
-
-            cached = loadFromApi();
-            cacheRef.set(cached);
-
-            Map<UUID, Person> index = new HashMap<>(cached.size() * 2);
-            for (Person p : cached) index.put(p.getId(), p);
-            indexRef.set(Collections.unmodifiableMap(index));
-
-            return cached;
+            try {
+                List<WillowTreeProfile> profiles = json == null ? List.of()
+                        : MAPPER.readValue(json, new TypeReference<>() {});
+                cache = profiles.stream()
+                        .filter(p -> p.id() != null && p.firstName() != null)
+                        .map(this::toPerson)
+                        .toList();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to parse WillowTree profiles response", e);
+            }
         }
-    }
-
-    private Map<UUID, Person> getIndex() {
-        Map<UUID, Person> index = indexRef.get();
-        if (index != null) return index;
-        getProfiles();                         // dispara la carga si todavía no ocurrió
-        return indexRef.get();
-    }
-
-    // --- extracción de lo que ya estaba en getProfiles() ---
-
-    private List<Person> loadFromApi() {
-        String json = restClient.get()
-                .uri(profilesUrl)
-                .retrieve()
-                .body(String.class);
-
-        try {
-            List<WillowTreeProfile> profiles = json == null ? List.of()
-                    : MAPPER.readValue(json, new TypeReference<>() {});
-            return profiles.stream()
-                    .filter(p -> p.id() != null && p.firstName() != null)
-                    .map(this::toPerson)
-                    .toList();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse WillowTree profiles response", e);
-        }
+        return cache;
     }
 
     private Person toPerson(WillowTreeProfile p) {

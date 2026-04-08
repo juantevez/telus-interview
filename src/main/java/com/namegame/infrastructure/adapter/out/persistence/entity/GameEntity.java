@@ -37,13 +37,6 @@ public class GameEntity {
     @OrderBy("roundNumber ASC")
     private List<RoundEntity> rounds = new ArrayList<>();
 
-    @Version
-    @Column(name = "version", nullable = false)
-    private Long version;
-
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
-
     @PrePersist
     void prePersist() {
         Instant now = Instant.now();

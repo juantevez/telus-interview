@@ -17,7 +17,6 @@ public class Game {
     private List<Round> rounds;
     private Instant createdAt;
     private Instant finishedAt;
-    private Long version;
 
     public Game() {}
 
@@ -108,12 +107,4 @@ public class Game {
 
     public Instant getFinishedAt() { return finishedAt; }
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
-    }
 }
