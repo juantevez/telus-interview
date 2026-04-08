@@ -8,6 +8,7 @@ import com.namegame.domain.model.Round;
 import com.namegame.domain.port.in.GetRoundPort;
 import com.namegame.domain.port.out.GameRepositoryPort;
 import com.namegame.domain.port.out.PersonRepositoryPort;
+import jakarta.transaction.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -43,6 +44,7 @@ public class GetRoundUseCase implements GetRoundPort {
         return round;
     }
 
+    @Transactional
     public RoundResponse getRoundResponse(UUID gameId, int roundNumber) {
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new GameNotFoundException(gameId));

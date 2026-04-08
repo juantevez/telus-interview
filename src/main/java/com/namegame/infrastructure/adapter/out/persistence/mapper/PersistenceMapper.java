@@ -55,6 +55,7 @@ public class PersistenceMapper {
         g.setRounds(rounds);
         g.setCreatedAt(e.getCreatedAt());
         g.setFinishedAt(e.getFinishedAt());
+        g.setVersion(e.getVersion());
         return g;
     }
 
@@ -71,7 +72,7 @@ public class PersistenceMapper {
                 .map(r -> toEntity(r, e))
                 .toList();
         e.setRounds(roundEntities);
-
+        e.setVersion(g.getVersion());
         return e;
     }
 }

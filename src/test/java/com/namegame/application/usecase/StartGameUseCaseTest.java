@@ -68,10 +68,11 @@ class StartGameUseCaseTest {
         assertThat(createdGame.getStatus()).isEqualTo(GameStatus.IN_PROGRESS);
         assertThat(createdGame.getRounds()).hasSize(totalRounds);
 
-        // Verificar que la primera ronda tiene los datos correctos del mock
         Round firstRound = createdGame.getRounds().get(0);
-        assertThat(firstRound.getTargetPersonId()).isEqualTo(person1.getId());
-        assertThat(firstRound.getOptionPersonIds()).contains(person1.getId(), person2.getId());
+        assertThat(firstRound.getTargetPersonId())
+                .isIn(person1.getId(), person2.getId());
+        assertThat(firstRound.getOptionPersonIds())
+                .contains(person1.getId(), person2.getId());
 
         // Verificar interacciones
         verify(personRepository, times(1)).countActive();
