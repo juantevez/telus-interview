@@ -1,0 +1,124 @@
+{
+  "info": {
+    "name": "NameGame API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "gameId", "value": "" },
+    { "key": "personId", "value": "" },
+    { "key": "roundNumber", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Games",
+      "item": [
+        {
+          "name": "Start Game",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.gameId) { pm.collectionVariables.set('gameId', json.gameId); }",
+                  "if (json.currentRound) { pm.collectionVariables.set('roundNumber', json.currentRound); }",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/games",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "games"]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalRounds\": 5,\n  \"facesPerRound\": 4\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Round",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "if (json.faces && json.faces.length > 0) {",
+                  "    pm.collectionVariables.set('personId', json.faces[0].personId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/games/{{gameId}}/rounds/{{roundNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "games", "{{gameId}}", "rounds", "{{roundNumber}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit Answer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "if (json.nextRoundNumber) {",
+                  "    pm.collectionVariables.set('roundNumber', json.nextRoundNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/games/{{gameId}}/rounds/{{roundNumber}}/answer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "games", "{{gameId}}", "rounds", "{{roundNumber}}", "answer"]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedPersonId\": \"{{personId}}\",\n  \"clientTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Game Results",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/games/{{gameId}}/results",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "games", "{{gameId}}", "results"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

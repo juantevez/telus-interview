@@ -1,0 +1,16 @@
+# IntelliJ IDEA
+.idea/
+.claude/
+.vscode/
+
+*.iml
+*.iws
+/out/
+
+# Otros archivos comunes a ignorar
+target/
+build/
+*.log
+
+
+.env
