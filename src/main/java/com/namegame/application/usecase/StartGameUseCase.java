@@ -11,6 +11,7 @@ import com.namegame.domain.port.out.PersonRepositoryPort;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 public class StartGameUseCase implements StartGamePort {
@@ -35,11 +36,13 @@ public class StartGameUseCase implements StartGamePort {
         return gameRepository.save(game);
     }
 
+    private static final Random RANDOM = new Random();
+
     private List<Round> buildRounds(int totalRounds, int facesPerRound) {
         List<Round> rounds = new ArrayList<>();
         for (int i = 1; i <= totalRounds; i++) {
             List<Person> persons = personRepository.findRandomActive(facesPerRound);
-            Person target = persons.get(0);
+            Person target = persons.get(RANDOM.nextInt(persons.size()));
             List<UUID> optionIds = persons.stream().map(Person::getId).toList();
 
             rounds.add(new Round(UUID.randomUUID(), i, target.getId(), optionIds, null));

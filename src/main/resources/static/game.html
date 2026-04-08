@@ -366,6 +366,7 @@
   let roundStart   = null;
   let timerHandle  = null;
   let answered     = false;
+  let hasNextRound = false;
 
   // ── Pantallas ──────────────────────────────────────────
   function show(id) {
@@ -420,8 +421,9 @@
   // ── LOAD ROUND ────────────────────────────────────────
   async function loadRound() {
     show('screen-loading');
-    selectedId = null;
-    answered   = false;
+    selectedId   = null;
+    answered     = false;
+    hasNextRound = false;
 
     const res = await fetch(`${API}/api/v1/games/${gameId}/rounds/${roundNumber}`);
     if (!res.ok) throw new Error(`Error cargando ronda ${roundNumber}`);
@@ -476,9 +478,8 @@
   // ── CONTINUE (submit answer) ───────────────────────────
   async function handleContinue() {
     if (answered) {
-      // Ya respondimos → avanzar
-      if (roundNumber < totalRounds) {
-        roundNumber++;
+      // Ya respondimos → avanzar según lo que dijo el backend
+      if (hasNextRound) {
         await loadRound();
       } else {
         await loadResults();
@@ -492,17 +493,23 @@
     document.getElementById('btn-continue').disabled = true;
 
     const clientTimestamp = new Date().toISOString();
-    const res = await fetch(
-      `${API}/api/v1/games/${gameId}/rounds/${roundNumber}/answer`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedPersonId: selectedId, clientTimestamp })
-      }
-    );
-    const result = await res.json();
-
-    showFeedback(result);
+    try {
+      const res = await fetch(
+        `${API}/api/v1/games/${gameId}/rounds/${roundNumber}/answer`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ selectedPersonId: selectedId, clientTimestamp })
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || `Error ${res.status}`);
+      showFeedback(result);
+    } catch (e) {
+      answered = false;
+      document.getElementById('btn-continue').disabled = false;
+      alert('Error al enviar respuesta: ' + e.message);
+    }
   }
 
   // ── SHOW FEEDBACK ─────────────────────────────────────
@@ -540,15 +547,16 @@
           vos elegiste ${result.selectedName ?? '—'} · Tiempo: ${secs}</span>`;
     }
 
+    // Guardar si hay siguiente ronda y actualizar roundNumber
+    hasNextRound = result.hasNextRound;
+    if (result.hasNextRound) {
+      roundNumber = result.nextRoundNumber;
+    }
+
     // Botón para avanzar
     const btn = document.getElementById('btn-continue');
     btn.disabled = false;
     btn.textContent = result.hasNextRound ? 'Siguiente ronda →' : 'Ver resultados';
-
-    // Actualizar roundNumber para el próximo click
-    if (result.hasNextRound) {
-      roundNumber = result.nextRoundNumber;
-    }
   }
 
   // ── RESULTS ───────────────────────────────────────────
@@ -556,6 +564,11 @@
     show('screen-loading');
     const res = await fetch(`${API}/api/v1/games/${gameId}/results`);
     const data = await res.json();
+    if (!res.ok) {
+      alert('Error al cargar resultados: ' + (data.message || res.status));
+      show('screen-round');
+      return;
+    }
 
     document.getElementById('results-subtitle').textContent =
       `Partida completada · ${(data.totalTimeMillis / 1000).toFixed(1)}s total`;
