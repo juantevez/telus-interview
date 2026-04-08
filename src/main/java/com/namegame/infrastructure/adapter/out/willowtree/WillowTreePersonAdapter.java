@@ -1,15 +1,18 @@
 package com.namegame.infrastructure.adapter.out.willowtree;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.namegame.domain.model.Person;
 import com.namegame.domain.port.out.PersonRepositoryPort;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class WillowTreePersonAdapter implements PersonRepositoryPort {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
     private final String profilesUrl;
@@ -45,15 +48,21 @@ public class WillowTreePersonAdapter implements PersonRepositoryPort {
 
     private synchronized List<Person> getProfiles() {
         if (cache == null) {
-            List<WillowTreeProfile> profiles = restClient.get()
+            String json = restClient.get()
                     .uri(profilesUrl)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<>() {});
+                    .body(String.class);
 
-            cache = profiles == null ? List.of() : profiles.stream()
-                    .filter(p -> p.id() != null && p.firstName() != null)
-                    .map(this::toPerson)
-                    .toList();
+            try {
+                List<WillowTreeProfile> profiles = json == null ? List.of()
+                        : MAPPER.readValue(json, new TypeReference<>() {});
+                cache = profiles.stream()
+                        .filter(p -> p.id() != null && p.firstName() != null)
+                        .map(this::toPerson)
+                        .toList();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to parse WillowTree profiles response", e);
+            }
         }
         return cache;
     }
